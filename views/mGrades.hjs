@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Courses</title>
+    <link rel='stylesheet' href='/styles/bootstrap.min.css' />
+    <link rel='stylesheet' href='/styles/style.css' />
+    <script src="/js/jquery-2.2.0.min.js" type="text/javascript"></script>
+    <script src="/js/bootstrap.min.js" type="text/javascript"></script>
+  </head>
+  <body>
+    <div>
+      <div>
+        <nav class="navbar navbar-inverse" style="padding-left:130px;">
+          <ul class="nav navbar-nav">
+            <li><a href="/dashboard">Home</a></li>
+
+            <li id="transcripts" style="display:block"><a href="/transcripts">Transcript</a></li>
+            <li id="courses" style="display:block"><a href="/courses">Courses</a></li>
+            <li id="transfer" style="display:block"><a href="/transfer">Transfer requests</a></li>
+
+            <li id="mGrades" style="display:block" class="active"><a href="/manage/grades">Manage Grades</a></li>
+            <li id="mCourses" style="display:block" ><a href="/manage/courses">Manage Courses</a></li>
+            <li id="mTransfers" style="display:block"><a href="/manage/transfers">Manage Requests</a></li>
+
+            <li><a href="/logout">Logout</a></li>
+            
+            <script>
+              if ({{ roleId }} == 1)
+              {
+                $(mGrades).css('display', 'none');
+                $(mCourses).css('display', 'none');
+                $(mTransfers).css('display', 'none');
+              }
+              else if ({{ roleId }} == 2)
+              {
+                $(transcripts).css('display', 'none');
+                $(courses).css('display', 'none');
+                $(transfer).css('display', 'none');
+              }
+            </script>
+          </ul>
+        </nav>
+      </div>
+    </div>
+    <script>
+      $(document).ready(function() {
+        const sessionToken = document.cookie.includes('session_token');
+        if (!sessionToken) {
+          location.href = '/';
+        }
+        let values = [];
+        $(".dropdown-menu li a").click(function(){
+          const index = $(this).attr('index');
+          $("#courseDropdown").attr('index', index);
+          $("#courseDropdown").text($(this).text());
+          const courseId = $("#courseDropdown").attr("index");
+          $("#thead").empty();
+          $("#tbody").empty();
+          $.ajax({
+            type: "GET",
+            url: '/api/v1/enrollment/' + courseId, 
+            success: function(enrollments) {
+              if(enrollments) {
+                $(upload).css('display', 'block');
+                $("#thead").append(`
+                  <tr>
+                    <th class="text-center">Student ID</th>
+                    <th class="text-center">Student Name</th>
+                    <th class="text-center" style="width:100px;">Grade</th>
+                  </tr>
+                `);
+                // let grades = [];
+                // let userId = [];
+                values = [];
+                let i = 0;
+                for(let enrollment of enrollments)
+                {
+                  let grade;
+                  if(!enrollment.grade)
+                  {
+                    grade = "";
+                  }
+                  else
+                  {
+                    grade = enrollment.grade;
+                  }
+                  $("#tbody").append(`
+                    <tr>
+                      <style input{width:1px;}></style>
+                      <td class="text-center">${enrollment.userId}</td>
+                      <td class="text-center">${enrollment.firstName} ${enrollment.lastName}</td>
+                      <td style="width:100px"><input type="text" id=${i++} class="form-control" placeholder="Enter Grade" name="grade" value=${grade}></td>
+                    </tr>
+                  `);
+                  values.push({userId: enrollment.userId, grade: enrollment.grade});
+                }
+              }
+            },
+            error: function(errorResponse) {
+              if(errorResponse) {
+                console.log(courseId)
+                alert(`User login error: ${errorResponse.responseText}`);
+              }            
+            }
+          });
+        });
+        $("#upload").click(function() {
+          const courseId =  $("#courseDropdown").attr('index');
+          for(let i = 0; i < values.length; i++)
+          {
+            if(!$(`#${i}`).val())
+            {
+              values[i].grade = null;
+            }
+            else
+            {
+              values[i].grade = $(`#${i}`).val();
+            }
+          }
+          data = {
+            values
+          }
+          console.log(data);
+          $.ajax({
+            type: "PUT",
+            url: '/api/v1/enrollment/'+ courseId,
+            data,
+            success: function(serverResponse) {
+              if(serverResponse) {
+                alert(`Success: ${serverResponse}`);
+                location.href = window.location.href;
+              }
+            },
+            error: function(errorResponse) {
+              if(errorResponse) {
+                alert(`Error: ${errorResponse.responseText}`);
+              }            
+            }
+          });
+        });
+      });
+    </script>
+    </br>
+    <div>
+      <div class="form-group">
+        <label for="faculty" class="col-sm-2 control-label">Course Code</label>
+        <div class="col-sm-10">
+          <div class="btn-group">
+            <button index=0 id='courseDropdown' class="btn">Course Code</button>
+            <button class="btn dropdown-toggle" data-toggle="dropdown">
+              <span class="caret"></span>
+            </button>
+            <ul class="dropdown-menu">
+              {{#courses}}
+                <li><a index="{{id}}">{{code}}</a></li>
+              {{/courses}}              
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    </br>
+    <div>
+      <table class = "table table-striped" id = "updateTable">
+        <thead id = "thead">
+        
+        </thead>
+        <tbody id = "tbody">
+
+        </tbody>
+      </table>
+    </div>
+    <div class="form-group">
+      <div class="col-sm-10">
+        <button index='0' id='upload' class="btn" style="display:none">Upload</button>
+      </div>
+    </div>
+  </body>
+</html>
